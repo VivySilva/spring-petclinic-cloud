@@ -1,0 +1,85 @@
+1. Pré-requisitos
+Docker Desktop rodando
+Kubernetes ativado no Docker Desktop
+kubectl version --client
+
+kubectl funcionando
+kubectl get nodes
+
+helm instalado
+helm version
+
+mvn (Maven) instalado
+mvn -version
+
+
+2. Definir onde as imagens Docker vão ficar
+O Kubernetes não builda código, ele puxa imagens prontas. Então precisamos publicar as imagens do PetClinic em um repositório Docker.
+
+docker login
+export REPOSITORY_PREFIX=vivysilva
+
+
+3. Buildar as imagens dos microserviços
+O Maven vai usar Buildpacks para criar as imagens Docker de cada microserviço.
+
+cd "C:\Users\vivys\Documents\spring-petclinic-cloud"
+mvn spring-boot:build-image -Pk8s -DREPOSITORY_PREFIX=$env:REPOSITORY_PREFIX ou mvn spring-boot:build-image -Pk8s -DREPOSITORY_PREFIX=vivysilva
+./scripts/pushImages.sh
+
+
+4. Criar o namespace no Kubernetes
+Namespace é como se fosse uma “pasta lógica” dentro do cluster.
+kubectl apply -f k8s/init-namespace/
+kubectl get ns # Verificar
+
+
+5. Criar os serviços internos + Wavefront proxy
+Cria-se os endereços internos que os microsserviços usam para se comunicar.
+kubectl apply -f k8s/init-services
+kubectl get svc -n spring-petclinic # Verificar
+
+
+6. Subir os bancos MySQL
+Cada microserviço tem seu próprio banco. Então precisa-se criar 3 bancos.
+No README pede-se para usar as imagens do Bitnami, mas não estão mais disponíveis. Então, foi criado o mysql.yaml para subistituí-lo.
+kubectl apply -f mysql.yaml
+kubectl get pods -n spring-petclinic
+
+
+7. Fazer deploy dos microserviços
+kubectl apply -f k8s/ -n spring-petclinic
+
+Se der erro de CreateContainerConfigError:
+Customers DB:
+kubectl delete secret customers-db-mysql -n spring-petclinic
+kubectl create secret generic customers-db-mysql `
+  --from-literal=mysql-root-password=petclinic `
+  -n spring-petclinic
+kubectl rollout restart deployment customers-service -n spring-petclinic
+
+Vets DB:
+kubectl delete secret vets-db-mysql -n spring-petclinic
+kubectl create secret generic vets-db-mysql `
+  --from-literal=mysql-root-password=petclinic `
+  -n spring-petclinic
+kubectl rollout restart deployment vets-service -n spring-petclinic
+
+Visits DB:
+kubectl delete secret visits-db-mysql -n spring-petclinic
+kubectl create secret generic visits-db-mysql `
+  --from-literal=mysql-root-password=petclinic `
+  -n spring-petclinic
+kubectl rollout restart deployment visits-service -n spring-petclinic
+
+Se não ficarem Ready é pq não existe o Config Server e Discovery Server:
+docker build -t config-server:latest ./spring-petclinic-config-server
+docker build -t discovery-server:latest ./spring-petclinic-discovery-server
+kubectl apply -f k8s/discovery-server.yaml
+kubectl apply -f k8s/config-server.yaml
+kubectl rollout restart deployment customers-service -n spring-petclinic
+kubectl rollout restart deployment vets-service -n spring-petclinic
+kubectl rollout restart deployment visits-service -n spring-petclinic
+kubectl rollout restart deployment api-gateway -n spring-petclinic
+
+

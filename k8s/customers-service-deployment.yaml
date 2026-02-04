@@ -19,20 +19,27 @@ spec:
         app: customers-service
     spec:
       containers:
-      - image: ${REPOSITORY_PREFIX}/spring-petclinic-cloud-customers-service:latest
+      - image: vivysilva/spring-petclinic-customers-service
         name: customers-service
         imagePullPolicy: Always
-        livenessProbe:
-          httpGet:
-            port: 8080
-            path: /actuator/health/liveness
-          initialDelaySeconds: 90
-          periodSeconds: 5
         readinessProbe:
           httpGet:
-            port: 8080
             path: /actuator/health/readiness
-          initialDelaySeconds: 15
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 5
+
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 5
+
         lifecycle:
           preStop:
             exec:
@@ -44,17 +51,16 @@ spec:
             cpu: 2000m
             memory: 1Gi
         env:
+        - name: JAVA_TOOL_OPTIONS
+          value: "-XX:MaxRAMPercentage=75.0"
         - name: SPRING_PROFILES_ACTIVE
           value: kubernetes
         - name: SPRING_DATASOURCE_URL
-          value: jdbc:mysql://customers-db-mysql.spring-petclinic.svc.cluster.local:3306/service_instance_db?queryInterceptors=brave.mysql8.TracingQueryInterceptor&exceptionInterceptors=brave.mysql8.TracingExceptionInterceptor&zipkinServiceName=customers-db
+          value: jdbc:mysql://mysql:3306/service_instance_db
         - name: SPRING_DATASOURCE_USERNAME
-          value: root
+          value: petclinic
         - name: SPRING_DATASOURCE_PASSWORD
-          valueFrom:
-             secretKeyRef:
-               name: customers-db-mysql
-               key: mysql-root-password
+          value: petclinic
         - name: MANAGEMENT_METRICS_EXPORT_WAVEFRONT_URI
           value: proxy://wavefront-proxy.spring-petclinic.svc.cluster.local:2878
         ports:

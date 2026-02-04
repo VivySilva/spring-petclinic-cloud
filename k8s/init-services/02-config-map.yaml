@@ -57,6 +57,9 @@ data:
 
     spring:
       datasource:
+        url: jdbc:mysql://mysql:3306/petclinic
+        username: petclinic
+        password: petclinic
         schema: classpath*:db/mysql/schema.sql
         data: classpath*:db/mysql/data.sql
         platform: mysql
