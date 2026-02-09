@@ -28,8 +28,14 @@ spring:
         enabled: true
         name: petclinic-config
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
   endpoint:
     restart:
+      enabled: true
+    prometheus:
       enabled: true
 ---
 spring:
