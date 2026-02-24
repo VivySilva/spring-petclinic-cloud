@@ -16,6 +16,10 @@ spec:
     metadata:
       labels:
         app: api-gateway
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
     spec:
       containers:
       - image: vivysilva/spring-petclinic-api-gateway
@@ -56,8 +60,8 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: kubernetes
-        - name: MANAGEMENT_METRICS_EXPORT_WAVEFRONT_URI
-          value: proxy://wavefront-proxy.spring-petclinic.svc.cluster.local:2878
+        # - name: MANAGEMENT_METRICS_EXPORT_WAVEFRONT_URI
+        #   value: proxy://wavefront-proxy.spring-petclinic.svc.cluster.local:2878
         ports:
         - containerPort: 8080
       restartPolicy: Always

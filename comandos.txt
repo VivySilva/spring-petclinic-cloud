@@ -30,12 +30,14 @@ mvn spring-boot:build-image -Pk8s -DREPOSITORY_PREFIX=$env:REPOSITORY_PREFIX ou 
 
 4. Criar o namespace no Kubernetes
 Namespace é como se fosse uma “pasta lógica” dentro do cluster.
+
 kubectl apply -f k8s/init-namespace/
 kubectl get ns # Verificar
 
 
-5. Criar os serviços internos + Wavefront proxy
+5. Criar os serviços internos
 Cria-se os endereços internos que os microsserviços usam para se comunicar.
+
 kubectl apply -f k8s/init-services
 kubectl get svc -n spring-petclinic # Verificar
 
@@ -43,6 +45,7 @@ kubectl get svc -n spring-petclinic # Verificar
 6. Subir os bancos MySQL
 Cada microserviço tem seu próprio banco. Então precisa-se criar 3 bancos.
 No README pede-se para usar as imagens do Bitnami, mas não estão mais disponíveis. Então, foi criado o mysql.yaml para subistituí-lo.
+
 kubectl apply -f mysql.yaml
 kubectl get pods -n spring-petclinic
 
@@ -82,4 +85,72 @@ kubectl rollout restart deployment vets-service -n spring-petclinic
 kubectl rollout restart deployment visits-service -n spring-petclinic
 kubectl rollout restart deployment api-gateway -n spring-petclinic
 
+REBUILDAR
+cd spring-petclinic-vets-service 
+mvn clean package -DskipTests 
+cd .. 
+docker build -t vivysilva/vets-service:latest . 
+docker push vivysilva/vets-service:latest 
+kubectl rollout restart deployment vets-service -n spring-petclinic
 
+cd spring-petclinic-customers-service 
+mvn clean package -DskipTests 
+cd .. 
+docker build -t vivysilva/customers-service:latest . 
+docker push vivysilva/customers-service:latest
+kubectl rollout restart deployment customers-service -n spring-petclinic
+
+cd spring-petclinic-visits-service 
+mvn clean package -DskipTests 
+cd .. 
+docker build -t vivysilva/visits-service:latest . 
+docker push vivysilva/visits-service:latest
+kubectl rollout restart deployment visits-service -n spring-petclinic
+
+cd spring-petclinic-api-gateway 
+mvn clean package -DskipTests 
+cd .. 
+docker build -t vivysilva/api-gateway:latest . 
+docker push vivysilva/api-gateway:latest
+kubectl rollout restart deployment api-gateway -n spring-petclinic
+
+kubectl delete deployment wavefront-proxy -n spring-petclinic
+
+kubectl exec -it mysql-785d9c5794-dbqpk -n spring-petclinic -- mysql -u root -p
+
+CREATE DATABASE petclinic;
+CREATE DATABASE vets;
+CREATE DATABASE visits;
+CREATE DATABASE customers;
+
+GRANT ALL PRIVILEGES ON petclinic.* TO 'petclinic'@'%';
+GRANT ALL PRIVILEGES ON vets.* TO 'petclinic'@'%';
+GRANT ALL PRIVILEGES ON visits.* TO 'petclinic'@'%';
+GRANT ALL PRIVILEGES ON customers.* TO 'petclinic'@'%';
+
+FLUSH PRIVILEGES;
+
+ou 
+
+CREATE DATABASE IF NOT EXISTS petclinic;
+
+CREATE USER IF NOT EXISTS 'petclinic'@'%' IDENTIFIED BY 'petclinic';
+
+GRANT ALL PRIVILEGES ON petclinic.* TO 'petclinic'@'%';
+
+FLUSH PRIVILEGES;
+
+exit;
+
+kubectl rollout restart deployment customers-service -n spring-petclinic
+kubectl rollout restart deployment vets-service -n spring-petclinic
+kubectl rollout restart deployment visits-service -n spring-petclinic
+
+Comandos para acessar as ferramentas
+Prometheus: kubectl port-forward svc/prometheus -n spring-petclinic 9090:9090
+Loki: kubectl port-forward svc/loki -n spring-petclinic 3100:3100
+Alloy (browser): kubectl port-forward -n spring-petclinic daemonset/promtail 9080:9080
+
+
+# Zipkin (em outro terminal)
+kubectl port-forward svc/zipkin -n spring-petclinic 9411:9411
