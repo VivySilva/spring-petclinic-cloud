@@ -145,9 +145,24 @@ exit;
 kubectl rollout restart deployment customers-service -n spring-petclinic
 kubectl rollout restart deployment vets-service -n spring-petclinic
 kubectl rollout restart deployment visits-service -n spring-petclinic
+kubectl rollout restart deployment api-gateway -n spring-petclinic
 
 Comandos para acessar as ferramentas
 Prometheus: kubectl port-forward svc/prometheus -n spring-petclinic 9090:9090
 Loki: kubectl port-forward svc/loki -n spring-petclinic 3100:3100
 Alloy (browser): kubectl port-forward -n spring-petclinic daemonset/promtail 9080:9080
 Zipkin: kubectl port-forward svc/zipkin -n spring-petclinic 9411:9411
+
+
+Logs recentes:
+$query = [uri]::EscapeDataString('{namespace="spring-petclinic"}')
+Invoke-RestMethod -Uri "http://localhost:3100/loki/api/v1/query_range?query=$query&limit=20" | ConvertTo-Json -Depth 5
+
+Traces recentes:
+$traces = Invoke-RestMethod -Uri "http://localhost:9411/api/v2/traces?limit=10"
+$traces | ConvertTo-Json -Depth 10
+
+Métricas dos pods recentes:
+Invoke-RestMethod -Uri "http://localhost:9090/api/v1/label/__name__/values" | ConvertTo-Json -Depth 3
+Invoke-RestMethod -Uri "http://localhost:9090/api/v1/targets" | ConvertTo-Json -Depth 8
+
