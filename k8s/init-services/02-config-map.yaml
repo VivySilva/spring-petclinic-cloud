@@ -17,7 +17,10 @@ data:
         min-response-size: 2048
 
     # Logging
-    logging.level.org.springframework: INFO
+    logging:
+      level:
+        org.springframework: INFO
+        org.springframework.web.servlet.DispatcherServlet: DEBUG
 
     # Metrics
     management:
@@ -60,7 +63,7 @@ data:
         platform: mysql
         initialization-mode: always
       jpa:
-        show-sql: true
+        show-sql: false
         hibernate:
           ddl-auto: none
           generate-ddl: false
