@@ -115,6 +115,7 @@ docker push vivysilva/api-gateway:latest
 kubectl rollout restart deployment api-gateway -n spring-petclinic
 
 kubectl delete deployment wavefront-proxy -n spring-petclinic
+sudo k3s kubectl delete deployment wavefront-proxy -n spring-petclinic
 
 kubectl exec -it mysql-785d9c5794-dbqpk -n spring-petclinic -- mysql -u root -p
 
@@ -166,5 +167,34 @@ Métricas dos pods recentes:
 Invoke-RestMethod -Uri "http://localhost:9090/api/v1/label/__name__/values" | ConvertTo-Json -Depth 3
 Invoke-RestMethod -Uri "http://localhost:9090/api/v1/targets" | ConvertTo-Json -Depth 8
 
-Estresse da aplicação:
-1..50 | ForEach-Object { $u = @("http://localhost:8080/api/customer/owners","http://localhost:8080/api/customer/owners/1","http://localhost:8080/api/vet/vets","http://localhost:8080/api/visit/owners/1/pets/1/visits") | Get-Random; try { Invoke-RestMethod -Uri $u -TimeoutSec 3 | Out-Null } catch {} }
+//----------------------------------------------------------------------------
+
+Comandos no wsl/Ubutu
+
+cd /mnt/c/Users/vivys/Documents/spring-petclinic-cloud
+
+Iniciar a aplicação:
+1	Todas (Ubuntu/WSL) - sudo systemctl start tailscaled && sudo tailscale up
+2	Notebook-Vivy - sudo systemctl start k3s
+3	Augusto + Mac - sudo systemctl start k3s-agent
+4 Recriar o bd, caso os pods não subam
+
+Veirificar os nós:
+sudo k3s kubectl get nodes
+sudo k3s kubectl get nodes -o wide
+
+Verificar os pods:
+sudo k3s kubectl get pods -n spring-petclinic -o wide
+
+Reiniciar os pods:
+sudo k3s kubectl rollout restart deployment api-gateway customers-service vets-service visits-service -n spring-petclinic
+
+Iniciar o experimento:
+bash run_experiment.sh
+
+Realizar o Pré Porcessamento:
+python preprocess.py --min_date 2026-06-01
+
+Deligar/Parar a aplicação:
+1 Augusto + Mac - sudo systemctl stop k3s-agent
+2 Notebook-Vivy - sudo systemctl stop k3s
