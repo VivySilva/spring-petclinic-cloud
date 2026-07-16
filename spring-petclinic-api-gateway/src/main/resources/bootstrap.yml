@@ -4,6 +4,13 @@ spring:
       uri: http://localhost:8888
   application:
     name: api-gateway
+  sleuth:
+    web:
+      enabled: true
+      # Garante que o status HTTP seja registrado no span raiz do gateway
+      additional-skip-pattern: /actuator.*
+    propagation-keys:
+      - x-request-id
 #this is a bug that needs to be resolved
 management:
   metrics:
@@ -33,6 +40,12 @@ spring:
       config:
         enabled: true
         name: petclinic-config
+  sleuth:
+    web:
+      enabled: true
+      additional-skip-pattern: /actuator.*
+    propagation-keys:
+      - x-request-id
 management:
   endpoint:
     restart:

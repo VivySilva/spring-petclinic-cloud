@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: config-server
-          image: config-server:latest
+          image: springcommunity/spring-petclinic-cloud-config-server:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8888
