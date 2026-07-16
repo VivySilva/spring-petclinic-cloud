@@ -13,7 +13,7 @@ CONFIGURAÇÃO:
         kubectl port-forward svc/zipkin -n spring-petclinic 9411:9411
 
 USO:
-    python collect_observability.py
+    python collect_data.py
 """
 
 import requests
@@ -38,6 +38,18 @@ ZIPKIN_URL = "http://localhost:9411"
 
 OUTPUT_DIR = "collect_data"
 
+# Topologia de rede do experimento — MUDE ANTES DE CADA COLETA!
+# Opções:
+#   "distributed"  — computadores em redes/Wi-Fis diferentes (VPN relay)
+#   "same_network" — todos os computadores no mesmo roteador Wi-Fi
+NETWORK_TOPOLOGY = "same_network"
+
+# Quantidade de computadores (nós) ativos no cluster — MUDE ANTES DE CADA COLETA!
+# Valores possíveis: 1, 2 ou 3
+# Use isso para registrar se você está rodando só no notebook,
+# com 2 máquinas ou com todas as 3.
+CLUSTER_NODES = 3
+
 SERVICES = [
     "api-gateway",
     "customers-service",
@@ -53,10 +65,74 @@ IGNORED_PATHS = {"/wpad.dat", "/favicon.ico"}
 # ============================================================
 
 PROMETHEUS_METRICS = [
-    "application_ready_time_seconds",
-    "application_started_time_seconds",
-    "disk_free_bytes",
-    "disk_total_bytes",
+    # CPU
+    "process_cpu_usage",
+    "system_cpu_usage",
+    "process_uptime_seconds",
+    "system_load_average_1m",
+    
+    # Memory
+    "jvm_memory_used_bytes",
+    "jvm_memory_committed_bytes",
+    "jvm_memory_max_bytes",
+    "jvm_memory_usage_after_gc_percent",
+    "jvm_gc_live_data_size_bytes",
+    "jvm_gc_max_data_size_bytes",
+    "jvm_gc_memory_allocated_bytes_total",
+    "jvm_gc_memory_promoted_bytes_total",
+    "jvm_gc_overhead_percent",
+    "jvm_gc_pause_seconds_count",
+    "jvm_gc_pause_seconds_sum",
+    "jvm_gc_pause_seconds_max",
+    "jvm_buffer_count_buffers",
+    "jvm_buffer_memory_used_bytes",
+    "jvm_buffer_total_capacity_bytes",
+    
+    # HTTP Latency / Request Metrics
+    "http_server_requests_seconds_count",
+    "http_server_requests_seconds_max",
+    "http_server_requests_seconds_sum",
+    "spring_cloud_gateway_requests_seconds_count",
+    "spring_cloud_gateway_requests_seconds_max",
+    "spring_cloud_gateway_requests_seconds_sum",
+    "spring_cloud_gateway_routes_count",
+    "spring_data_repository_invocations_seconds_count",
+    "spring_data_repository_invocations_seconds_max",
+    "spring_data_repository_invocations_seconds_sum",
+    "petclinic_owner_seconds_count",
+    "petclinic_owner_seconds_max",
+    "petclinic_owner_seconds_sum",
+    "petclinic_visit_seconds_count",
+    "petclinic_visit_seconds_max",
+    "petclinic_visit_seconds_sum",
+    
+    # JDBC / Connections
+    "hikaricp_connections",
+    "hikaricp_connections_active",
+    "hikaricp_connections_idle",
+    "hikaricp_connections_max",
+    "hikaricp_connections_min",
+    "hikaricp_connections_pending",
+    "hikaricp_connections_timeout_total",
+    "hikaricp_connections_acquire_seconds_count",
+    "hikaricp_connections_acquire_seconds_max",
+    "hikaricp_connections_acquire_seconds_sum",
+    "hikaricp_connections_creation_seconds_count",
+    "hikaricp_connections_creation_seconds_max",
+    "hikaricp_connections_creation_seconds_sum",
+    "hikaricp_connections_usage_seconds_count",
+    "hikaricp_connections_usage_seconds_max",
+    "hikaricp_connections_usage_seconds_sum",
+    "jdbc_connections_active",
+    "jdbc_connections_idle",
+    "jdbc_connections_max",
+    "jdbc_connections_min",
+    
+    # Network (cAdvisor)
+    "container_network_receive_bytes_total",
+    "container_network_transmit_bytes_total",
+    
+    # Thread / Process / Other
     "executor_active_threads",
     "executor_completed_tasks_total",
     "executor_pool_core_threads",
@@ -64,72 +140,15 @@ PROMETHEUS_METRICS = [
     "executor_pool_size_threads",
     "executor_queue_remaining_tasks",
     "executor_queued_tasks",
-    "hikaricp_connections",
-    "hikaricp_connections_acquire_seconds_count",
-    "hikaricp_connections_acquire_seconds_max",
-    "hikaricp_connections_acquire_seconds_sum",
-    "hikaricp_connections_active",
-    "hikaricp_connections_creation_seconds_count",
-    "hikaricp_connections_creation_seconds_max",
-    "hikaricp_connections_creation_seconds_sum",
-    "hikaricp_connections_idle",
-    "hikaricp_connections_max",
-    "hikaricp_connections_min",
-    "hikaricp_connections_pending",
-    "hikaricp_connections_timeout_total",
-    "hikaricp_connections_usage_seconds_count",
-    "hikaricp_connections_usage_seconds_max",
-    "hikaricp_connections_usage_seconds_sum",
-    "http_server_requests_seconds_count",
-    "http_server_requests_seconds_max",
-    "http_server_requests_seconds_sum",
-    "jdbc_connections_active",
-    "jdbc_connections_idle",
-    "jdbc_connections_max",
-    "jdbc_connections_min",
-    "jvm_buffer_count_buffers",
-    "jvm_buffer_memory_used_bytes",
-    "jvm_buffer_total_capacity_bytes",
-    "jvm_classes_loaded_classes",
-    "jvm_classes_unloaded_classes_total",
-    "jvm_gc_live_data_size_bytes",
-    "jvm_gc_max_data_size_bytes",
-    "jvm_gc_memory_allocated_bytes_total",
-    "jvm_gc_memory_promoted_bytes_total",
-    "jvm_gc_overhead_percent",
-    "jvm_gc_pause_seconds_count",
-    "jvm_gc_pause_seconds_max",
-    "jvm_gc_pause_seconds_sum",
-    "jvm_memory_committed_bytes",
-    "jvm_memory_max_bytes",
-    "jvm_memory_usage_after_gc_percent",
-    "jvm_memory_used_bytes",
     "jvm_threads_daemon_threads",
     "jvm_threads_live_threads",
     "jvm_threads_peak_threads",
     "jvm_threads_states_threads",
     "logback_events_total",
-    "process_cpu_usage",
-    "process_files_max_files",
     "process_files_open_files",
-    "process_start_time_seconds",
-    "process_uptime_seconds",
-    "scrape_duration_seconds",
-    "scrape_samples_post_metric_relabeling",
-    "scrape_samples_scraped",
-    "scrape_series_added",
-    "spring_cloud_gateway_routes_count",
-    "system_cpu_count",
-    "system_cpu_usage",
-    "system_load_average_1m",
-    "tomcat_sessions_active_current_sessions",
-    "tomcat_sessions_active_max_sessions",
-    "tomcat_sessions_alive_max_seconds",
-    "tomcat_sessions_created_sessions_total",
-    "tomcat_sessions_expired_sessions_total",
-    "tomcat_sessions_rejected_sessions_total",
     "up",
     "zipkin_reporter_messages_bytes_total",
+    "zipkin_reporter_messages_dropped_total",
     "zipkin_reporter_messages_total",
     "zipkin_reporter_queue_bytes",
     "zipkin_reporter_queue_spans",
@@ -168,6 +187,9 @@ def parse_log_line(raw):
     Parseia linha de log no formato Spring Boot:
     2026-03-09 16:09:09.348  INFO [service,traceId,spanId] 1 --- [thread] logger : message
 
+    Logs podem vir com prefixo do container runtime (containerd/K3s):
+    2026-05-06T23:35:27.654909739-03:00 stdout F <log Spring Boot>
+
     Linhas sem esse formato (SQL Hibernate, stack traces) ficam só em 'message'.
     """
     result = {}
@@ -177,7 +199,13 @@ def parse_log_line(raw):
     except Exception:
         log_str = str(raw).strip()
 
-    # Regex com raw string para evitar perda de barras invertidas
+    # Remove prefixo do containerd (ex: "2026-05-06T23:35:27.654909739-03:00 stdout F ")
+    containerd_prefix = r"^\d{4}-\d{2}-\d{2}T\S+\s+std(?:out|err)\s+[FP]\s+"
+    containerd_match = re.match(containerd_prefix, log_str)
+    if containerd_match:
+        log_str = log_str[containerd_match.end():]
+
+    # Regex para formato Spring Boot
     pattern = r"^\S+ \S+\s+(\w+)\s+\[([^\]]*)\]\s+\d+\s+---\s+\[([^\]]*)\]\s+(\S+)\s+:\s+(.*)$"
     match = re.match(pattern, log_str)
     if match:
@@ -197,6 +225,30 @@ def parse_log_line(raw):
     return result
 
 
+def is_stack_trace_line(message):
+    """
+    Detecta linhas de stack trace Java que não são úteis para o treinamento.
+    Exemplos filtrados:
+        at org.springframework.web.client.RestTemplate.doExecute(RestTemplate.java:777)
+        ... 9 common frames omitted
+        Caused by: java.net.ConnectException: Connection refused
+        2026-05-29T00:32:59.094-03:00 stdout F   (prefixo containerd solto)
+    """
+    if not message or not message.strip():
+        return True
+    msg = message.strip()
+    if msg.startswith("at "):
+        return True
+    if re.match(r"^\.\.\.\s+\d+\s+(common\s+)?frames?\s+omitted", msg):
+        return True
+    if msg.startswith("Caused by:"):
+        return True
+    # Prefixo containerd solto sem conteúdo útil após ele
+    if re.match(r"^\d{4}-\d{2}-\d{2}T\S+\s+std(?:out|err)\s+[FP]\s*$", msg):
+        return True
+    return False
+
+
 # ============================================================
 # COLETA PROMETHEUS
 # ============================================================
@@ -204,7 +256,8 @@ def parse_log_line(raw):
 def collect_prometheus(collected_at, instance_map, filepath):
     file_exists = os.path.exists(filepath)
     fieldnames = ["collected_at", "metric_timestamp", "metric_name",
-                  "service", "instance", "labels", "value"]
+                  "service", "instance", "labels", "value",
+                  "network_topology", "cluster_nodes"]
 
     with open(filepath, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -214,7 +267,12 @@ def collect_prometheus(collected_at, instance_map, filepath):
         collected = 0
         for metric_name in PROMETHEUS_METRICS:
             try:
-                query = f'{metric_name}{{job="spring-petclinic"}}'
+                # Se for métrica do cAdvisor (rede), consulta especificando namespace e interface externa (eth0)
+                if metric_name.startswith("container_network_"):
+                    query = f'{metric_name}{{namespace="spring-petclinic",interface="eth0"}}'
+                else:
+                    query = f'{metric_name}{{job="spring-petclinic"}}'
+
                 response = requests.get(
                     f"{PROMETHEUS_URL}/api/v1/query",
                     params={"query": query},
@@ -227,18 +285,28 @@ def collect_prometheus(collected_at, instance_map, filepath):
                         instance = metric_labels.get("instance", "")
                         service = instance_map.get(instance, "")
                         
+                        # Fallback para mapear cAdvisor pelo nome do pod (ex: "api-gateway-xxx" -> "api-gateway")
+                        pod = metric_labels.get("pod", "")
+                        if not service and pod:
+                            for s in SERVICES:
+                                if pod.startswith(s):
+                                    service = s
+                                    break
+
                         # Extrai o timestamp em que o prometheus registrou a métrica
                         metric_time = float(result["value"][0])
                         metric_timestamp = datetime.fromtimestamp(metric_time, tz=timezone.utc).isoformat()
                         
                         writer.writerow({
-                            "collected_at":     collected_at,
-                            "metric_timestamp": metric_timestamp,
-                            "metric_name":      metric_name,
-                            "service":          service,
-                            "instance":         instance,
-                            "labels":           str(metric_labels),
-                            "value":            result["value"][1],
+                            "collected_at":      collected_at,
+                            "metric_timestamp":  metric_timestamp,
+                            "metric_name":       metric_name,
+                            "service":           service,
+                            "instance":          instance,
+                            "labels":            str(metric_labels),
+                            "value":             result["value"][1],
+                            "network_topology":  NETWORK_TOPOLOGY,
+                            "cluster_nodes":     CLUSTER_NODES,
                         })
                         collected += 1
             except Exception as e:
@@ -302,7 +370,11 @@ def collect_loki(collected_at, lookback_seconds, filepath):
                     for stream in data["data"]["result"]:
                         pod = stream["stream"].get("pod", "")
                         for ts_ns, raw in stream["values"]:
+                            # Ignora stack traces (não úteis para treinamento)
                             parsed = parse_log_line(raw)
+                            if not parsed.get("level") and is_stack_trace_line(parsed.get("message", "")):
+                                continue
+
                             writer.writerow({
                                 "collected_at": collected_at,
                                 "service":      service,
@@ -395,9 +467,17 @@ def collect_zipkin(collected_at, lookback_seconds, filepath):
                         if "error" in tags:
                             has_error = True
                             
-                        # Métricas DB: Nome da operação é tx ou possui tags de sql
-                        op_name = span.get("name", "")
-                        if op_name == "tx" or "sql.query" in tags:
+                        # Métricas DB: Nome da operação é tx ou possui tags de sql ou db.* (OpenTelemetry)
+                        op_name = span.get("name", "").lower()
+                        is_db = False
+                        if op_name in ["tx", "query", "select", "insert", "update", "delete", "commit", "rollback"]:
+                            is_db = True
+                        elif "sql.query" in tags or "jdbc.query" in tags:
+                            is_db = True
+                        elif any(k.startswith("db.") for k in tags.keys()):
+                            is_db = True
+                            
+                        if is_db:
                             db_query_count += 1
                             db_total_duration_ms += span.get("duration", 0) / 1000.0
                             
@@ -409,7 +489,15 @@ def collect_zipkin(collected_at, lookback_seconds, filepath):
                         if not span.get("parentId"):
                             root_http_method = tags.get("http.method", "")
                             root_http_path = http_path
-                            root_http_status = tags.get("http.status_code", "")
+                        
+                        # Pegar o status HTTP do root span, ou do primeiro span que o contiver
+                        if not root_http_status:
+                            status = tags.get("http.status_code", tags.get("http.response.status_code", tags.get("status_code", "")))
+                            if status:
+                                root_http_status = status
+                                
+                    if not root_http_status and not has_error:
+                        root_http_status = "200"
                             
                         ts = span.get("timestamp", 0)  # em microsegundos
                         dur = span.get("duration", 0)  # em microsegundos
