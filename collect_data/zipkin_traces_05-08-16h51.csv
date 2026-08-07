@@ -1,0 +1,2 @@
+collected_at,trace_id,start_timestamp,total_duration_ms,spans_count,unique_services_count,services_list,has_error,root_http_method,root_http_path,root_http_status,db_query_count,db_total_duration_ms,internal_calls_count
+2026-08-05T19:51:38.188905+00:00,f75a4e89f26a4a4d,2026-08-05T19:51:38.241801+00:00,597.369,2,1,api-gateway,False,GET,/api/customer/owners,200,0,0.0,1
