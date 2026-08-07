@@ -97,12 +97,14 @@ metadata:
   labels:
     app: loki
 spec:
+  type: NodePort
   selector:
     app: loki
   ports:
     - name: http
       port: 3100
       targetPort: 3100
+      nodePort: 30100
     - name: grpc
       port: 9096
-      targetPort: 9096
+      targetPort: 9096

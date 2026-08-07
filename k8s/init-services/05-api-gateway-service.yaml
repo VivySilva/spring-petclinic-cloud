@@ -11,8 +11,10 @@ spec:
   - name: "http"
     port: 80
     targetPort: 8080
+    nodePort: 30080
   selector:
     app: api-gateway
-  type: LoadBalancer
+  type: NodePort
 status:
   loadBalancer: {}
+

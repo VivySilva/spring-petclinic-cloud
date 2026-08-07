@@ -85,6 +85,8 @@ kubectl rollout restart deployment vets-service -n spring-petclinic
 kubectl rollout restart deployment visits-service -n spring-petclinic
 kubectl rollout restart deployment api-gateway -n spring-petclinic
 
+//----------------------------------------------------------------------------
+
 REBUILDAR
 cd spring-petclinic-vets-service 
 mvn clean package -DskipTests 
@@ -117,6 +119,8 @@ kubectl rollout restart deployment api-gateway -n spring-petclinic
 kubectl delete deployment wavefront-proxy -n spring-petclinic
 sudo k3s kubectl delete deployment wavefront-proxy -n spring-petclinic
 
+//----------------------------------------------------------------------------
+
 kubectl exec -it mysql-785d9c5794-dbqpk -n spring-petclinic -- mysql -u root -p
 
 CREATE DATABASE petclinic;
@@ -147,6 +151,8 @@ kubectl rollout restart deployment customers-service -n spring-petclinic
 kubectl rollout restart deployment vets-service -n spring-petclinic
 kubectl rollout restart deployment visits-service -n spring-petclinic
 kubectl rollout restart deployment api-gateway -n spring-petclinic
+
+//----------------------------------------------------------------------------
 
 Comandos para acessar as ferramentas
 Prometheus: kubectl port-forward svc/prometheus -n spring-petclinic 9090:9090
@@ -191,6 +197,7 @@ sudo k3s kubectl rollout restart deployment api-gateway customers-service vets-s
 
 Iniciar o experimento:
 bash run_experiment.sh
+bash run_multiple_experiments.sh
 
 Realizar o Pré Porcessamento:
 python preprocess.py --min_date 2026-06-01

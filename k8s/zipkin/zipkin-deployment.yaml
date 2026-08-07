@@ -18,6 +18,16 @@ spec:
           image: openzipkin/zipkin:latest
           ports:
             - containerPort: 9411
+          env:
+            - name: JAVA_OPTS
+              value: "-Xms256m -Xmx1500m"
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 200m
+            limits:
+              memory: 2Gi
+              cpu: 1000m
 ---
 apiVersion: v1
 kind: Service
@@ -25,10 +35,12 @@ metadata:
   name: zipkin
   namespace: spring-petclinic
 spec:
+  type: NodePort
   selector:
     app: zipkin
   ports:
     - protocol: TCP
       port: 9411
       targetPort: 9411
-  type: ClusterIP
+      nodePort: 30411
+
