@@ -15,7 +15,7 @@
 # ============================================================
 
 DURACAO_MINUTOS=5
-REQUISICOES_POR_SEGUNDO=20
+REQUISICOES_POR_SEGUNDO=300
 NAMESPACE="spring-petclinic"
 
 # Caminho do script Python de coleta
@@ -27,7 +27,7 @@ SCRIPT_COLETA="/mnt/c/Users/vivys/Documents/spring-petclinic-cloud/collect_data.
 
 DURACAO_SEGUNDOS=$((DURACAO_MINUTOS * 60))
 PAUSA_MS=$(echo "scale=3; 1 / $REQUISICOES_POR_SEGUNDO" | bc)
-API_URL="http://localhost:80"
+API_URL="http://localhost:30080"
 
 ENDPOINTS=(
     "$API_URL/api/customer/owners"
@@ -61,9 +61,8 @@ cleanup() {
     echo "========================================"
     echo "   EXPERIMENTO CONCLUIDO!"
     echo "========================================"
-    echo "  Requisicoes OK:  $contador_ok"
-    echo "  Erros de rede:   $contador_erros"
     echo "  Dados salvos em: /mnt/c/Users/vivys/Documents/spring-petclinic-cloud/collect_data/"
+    echo "  Veja o resumo de requests no log do k6 acima."
     echo "========================================"
     echo ""
     exit 0
@@ -85,32 +84,11 @@ echo "  Total estimado:      ~$((DURACAO_SEGUNDOS * REQUISICOES_POR_SEGUNDO)) re
 echo "========================================"
 echo ""
 
-# --- Passo 1: Autentica sudo e abre port-forwards ---
-echo "[1/4] Abrindo port-forwards..."
-echo "      (Se pedir senha, digite agora)"
+# --- Passo 1: Verifica conectividade ---
+echo "[1/4] Verificando acesso aos serviços NodePort..."
+echo "      (Se pedir senha sudo, digite agora)"
 sudo -v
 
-pkill -f "k3s kubectl port-forward" 2>/dev/null
-sleep 1
-
-sudo k3s kubectl port-forward svc/api-gateway  -n $NAMESPACE 80:80   &
-pids_pf+=($!)
-echo "      api-gateway  -> localhost:80"
-
-sudo k3s kubectl port-forward svc/prometheus   -n $NAMESPACE 9090:9090 &
-pids_pf+=($!)
-echo "      prometheus   -> localhost:9090"
-
-sudo k3s kubectl port-forward svc/loki         -n $NAMESPACE 3100:3100 &
-pids_pf+=($!)
-echo "      loki         -> localhost:3100"
-
-sudo k3s kubectl port-forward svc/zipkin       -n $NAMESPACE 9411:9411 &
-pids_pf+=($!)
-echo "      zipkin       -> localhost:9411"
-
-echo "      Aguardando as portas ficarem prontas..."
-sleep 5
 
 # --- Verifica se a porta do API Gateway está respondendo ---
 if ! curl -sf "$API_URL/api/customer/owners" > /dev/null 2>&1; then
@@ -131,29 +109,12 @@ echo "      Coleta iniciada com PID: $pid_coleta"
 # --- Passo 3: Estresse ---
 echo ""
 echo "[3/4] Estressando a aplicação por $DURACAO_MINUTOS minuto(s)..."
+echo "      Usando k6 para carga concorrente a $REQUISICOES_POR_SEGUNDO RPS..."
 echo "      Pressione Ctrl+C para interromper antes do tempo."
 echo ""
 
-fim=$((SECONDS + DURACAO_SEGUNDOS))
-
-while [ $SECONDS -lt $fim ]; do
-    idx=$((RANDOM % ${#ENDPOINTS[@]}))
-    url="${ENDPOINTS[$idx]}"
-
-    if curl -sf "$url" -o /dev/null --max-time 5 2>/dev/null; then
-        contador_ok=$((contador_ok + 1))
-    else
-        contador_erros=$((contador_erros + 1))
-    fi
-
-    total=$((contador_ok + contador_erros))
-    if [ $((total % 5)) -eq 0 ]; then
-        restante=$((fim - SECONDS))
-        printf "\r      OK: %d | Erros: %d | Restante: %ds   " \
-            "$contador_ok" "$contador_erros" "$restante"
-    fi
-
-    sleep "$PAUSA_MS"
-done
+# Executa o k6 e repassa as variáveis de ambiente
+k6 run --env API_URL="$API_URL" --env RPS="$REQUISICOES_POR_SEGUNDO" --env DURATION="${DURACAO_MINUTOS}m" "/mnt/c/Users/vivys/Documents/spring-petclinic-cloud/k6_script.js"
 
 cleanup
+

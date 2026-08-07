@@ -32,9 +32,9 @@ COLLECTION_INTERVAL_SECONDS = 60       # Frequência de coleta (segundos)
 # None = rodar até Ctrl+C | Ex: 60 = 1 hora
 COLLECTION_DURATION_MINUTES = None
 
-PROMETHEUS_URL = "http://localhost:9090"
-LOKI_URL = "http://localhost:3100"
-ZIPKIN_URL = "http://localhost:9411"
+PROMETHEUS_URL = "http://localhost:30090"
+LOKI_URL = "http://localhost:30100"
+ZIPKIN_URL = "http://localhost:30411"
 
 OUTPUT_DIR = "collect_data"
 
@@ -42,13 +42,26 @@ OUTPUT_DIR = "collect_data"
 # Opções:
 #   "distributed"  — computadores em redes/Wi-Fis diferentes (VPN relay)
 #   "same_network" — todos os computadores no mesmo roteador Wi-Fi
-NETWORK_TOPOLOGY = "same_network"
+NETWORK_TOPOLOGY = "distributed"
 
 # Quantidade de computadores (nós) ativos no cluster — MUDE ANTES DE CADA COLETA!
 # Valores possíveis: 1, 2 ou 3
 # Use isso para registrar se você está rodando só no notebook,
 # com 2 máquinas ou com todas as 3.
 CLUSTER_NODES = 3
+
+# Carga de requisições por segundo aplicada no experimento — MUDE ANTES DE CADA COLETA!
+# Deve corresponder ao valor de REQUISICOES_POR_SEGUNDO configurado no run_experiment.sh.
+# Exemplos: 6, 60, 120, 180, 240, 300
+LOAD_RPS = 300
+
+# ── Limites de coleta (calculados automaticamente — NÃO ALTERE) ──────────────
+# Após a filtragem de ruído (actuator, stack traces, etc.), o volume real de logs
+# é muito menor que RPS × intervalo. Um limite de 5000 por serviço cobre até
+# 300 RPS com margem, sem sobrecarregar o Loki ou o Zipkin.
+LOKI_LIMIT = 5000                  # linhas por serviço por coleta
+ZIPKIN_LIMIT = min(5000, max(2000, LOAD_RPS * 60))  # traces por serviço (escala com RPS)
+
 
 SERVICES = [
     "api-gateway",
@@ -257,7 +270,7 @@ def collect_prometheus(collected_at, instance_map, filepath):
     file_exists = os.path.exists(filepath)
     fieldnames = ["collected_at", "metric_timestamp", "metric_name",
                   "service", "instance", "labels", "value",
-                  "network_topology", "cluster_nodes"]
+                  "network_topology", "cluster_nodes", "load_rps"]
 
     with open(filepath, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -307,6 +320,7 @@ def collect_prometheus(collected_at, instance_map, filepath):
                             "value":             result["value"][1],
                             "network_topology":  NETWORK_TOPOLOGY,
                             "cluster_nodes":     CLUSTER_NODES,
+                            "load_rps":          LOAD_RPS,
                         })
                         collected += 1
             except Exception as e:
@@ -361,7 +375,7 @@ def collect_loki(collected_at, lookback_seconds, filepath):
                         "query": loki_query,
                         "start": start_ns,
                         "end":   now_ns,
-                        "limit": 1000,
+                        "limit": LOKI_LIMIT,
                     },
                     timeout=15
                 )
@@ -389,7 +403,11 @@ def collect_loki(collected_at, lookback_seconds, filepath):
                             })
                             collected += 1
             except Exception as e:
-                print(f"  [LOKI] Erro no serviço '{service}': {e}")
+                err_str = str(e)
+                if "Expecting value" in err_str:
+                    print(f"  [LOKI] Aviso: resposta vazia do Loki para '{service}' (sobrecarga transitória — será tentado na próxima iteração)")
+                else:
+                    print(f"  [LOKI] Erro no serviço '{service}': {e}")
 
         print(f"  [LOKI] {collected} linhas coletadas")
 
@@ -426,7 +444,7 @@ def collect_zipkin(collected_at, lookback_seconds, filepath):
                 response = requests.get(
                     f"{ZIPKIN_URL}/api/v2/traces",
                     params={"serviceName": service,
-                            "lookback": lookback_ms, "limit": 500},
+                            "lookback": lookback_ms, "limit": ZIPKIN_LIMIT},
                     timeout=15
                 )
                 for trace in response.json():

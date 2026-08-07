@@ -178,17 +178,32 @@ def process_prometheus(input_dir: str) -> pd.DataFrame:
     node_counts = df["cluster_nodes"].value_counts().sort_index().to_dict()
     print(f"  Nós por janela detectados: {node_counts}")
 
+    # ----------------------------------------------------------
+    # Carga aplicada (RPS):
+    #   - Dados novos: lê a coluna 'load_rps' do CSV
+    #   - Dados antigos (sem a coluna): fica como NaN — o modelo
+    #     vai ignorar ou imputar depois no Colab.
+    # ----------------------------------------------------------
+    if "load_rps" in df.columns:
+        df["load_rps"] = pd.to_numeric(df["load_rps"], errors="coerce")
+    else:
+        df["load_rps"] = float("nan")
+
+    rps_counts = df["load_rps"].value_counts(dropna=False).sort_index().to_dict()
+    print(f"  Cargas (RPS) detectadas: {rps_counts}")
+
     # Remove duplicatas exatas
     df = df.drop_duplicates(subset=["collected_at", "metric_name", "instance", "labels"])
 
     # Chave de agrupamento final
     key = ["timestamp_min", "service", "node_ip"]
 
-    # Extrai topologia e número de nós por minuto/serviço/nó (primeira ocorrência)
+    # Extrai topologia, número de nós e carga (RPS) por minuto/serviço/nó
     topology_df = (df.sort_values("collected_at")
                      .groupby(key)
                      .agg(network_topology=("network_topology", "first"),
-                          cluster_nodes=("cluster_nodes", "first"))
+                          cluster_nodes=("cluster_nodes", "first"),
+                          load_rps=("load_rps", "first"))
                      .reset_index())
 
     results = []  # lista de DataFrames parciais, um por métrica
@@ -515,7 +530,7 @@ def join_and_derive(prom: pd.DataFrame,
     FINAL_COLUMNS = [
         "timestamp_min", "service", "node_ip",
         # Cenário de rede e infraestrutura
-        "network_topology", "cluster_nodes",
+        "network_topology", "cluster_nodes", "load_rps",
         # CPU / Carga
         "cpu_process", "cpu_system", "load_1m",
         # Memória
