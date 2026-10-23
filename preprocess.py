@@ -32,8 +32,8 @@ import numpy as np
 # CONFIGURAÇÃO
 # ============================================================
 
-INPUT_DIR   = "collect_data"
-OUTPUT_FILE = "dataset_final.csv"
+INPUT_DIR   = os.environ.get("INPUT_DIR", "collect_data_v2")
+OUTPUT_FILE = os.environ.get("OUTPUT_FILE", "dataset_final_v2.csv")
 
 # Mapeamento: prefixo de sub-rede do pod -> IP Tailscale do nó físico
 # Ajuste se os IPs do Tailscale mudarem
@@ -134,7 +134,7 @@ def process_prometheus(input_dir: str) -> pd.DataFrame:
 
     # Limpeza e enriquecimento
     df["value"]        = pd.to_numeric(df["value"], errors="coerce")
-    df["collected_at"] = pd.to_datetime(df["collected_at"], utc=True)
+    df["collected_at"] = pd.to_datetime(df["collected_at"], format='ISO8601', utc=True)
     df["timestamp_min"]= df["collected_at"].dt.floor("min")
     df["node_ip"]      = df["instance"].apply(instance_to_node_ip)
     df["labels_dict"]  = df["labels"].apply(parse_labels)
@@ -380,7 +380,7 @@ def process_zipkin(input_dir: str) -> pd.DataFrame:
     df = df.drop_duplicates(subset=["trace_id"])
     print(f"  Traces únicos: {len(df):,}")
 
-    df["start_timestamp"]    = pd.to_datetime(df["start_timestamp"], utc=True)
+    df["start_timestamp"]    = pd.to_datetime(df["start_timestamp"], format='ISO8601', utc=True)
     df["timestamp_min"]      = df["start_timestamp"].dt.floor("min")
     df["has_error"]          = (df["has_error"].astype(str).str.lower() == "true").astype(int)
     df["total_duration_ms"]  = pd.to_numeric(df["total_duration_ms"],  errors="coerce")
@@ -443,7 +443,7 @@ def process_loki(input_dir: str) -> pd.DataFrame:
     df = pd.concat(dfs, ignore_index=True)
     print(f"  Linhas de log brutas: {len(df):,}")
 
-    df["timestamp"]     = pd.to_datetime(df["timestamp"], utc=True)
+    df["timestamp"]     = pd.to_datetime(df["timestamp"], format='ISO8601', utc=True)
     df["timestamp_min"] = df["timestamp"].dt.floor("min")
     df = df[df["service"].isin(TARGET_SERVICES)]
 

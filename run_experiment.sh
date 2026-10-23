@@ -15,7 +15,8 @@
 # ============================================================
 
 DURACAO_MINUTOS=5
-REQUISICOES_POR_SEGUNDO=300
+REQUISICOES_POR_SEGUNDO=${1:-300}
+DIR_SAIDA=${OUTPUT_DIR:-"collect_data_v2"}
 NAMESPACE="spring-petclinic"
 
 # Caminho do script Python de coleta
@@ -61,7 +62,7 @@ cleanup() {
     echo "========================================"
     echo "   EXPERIMENTO CONCLUIDO!"
     echo "========================================"
-    echo "  Dados salvos em: /mnt/c/Users/vivys/Documents/spring-petclinic-cloud/collect_data/"
+    echo "  Dados salvos em: /mnt/c/Users/vivys/Documents/spring-petclinic-cloud/$DIR_SAIDA/"
     echo "  Veja o resumo de requests no log do k6 acima."
     echo "========================================"
     echo ""
@@ -100,7 +101,9 @@ fi
 
 # --- Passo 2: Inicia a coleta de dados ---
 echo ""
-echo "[2/4] Iniciando coleta de dados (collect_data.py)..."
+echo "[2/4] Iniciando coleta de dados (collect_data.py) para $REQUISICOES_POR_SEGUNDO RPS em $DIR_SAIDA/..."
+export LOAD_RPS="$REQUISICOES_POR_SEGUNDO"
+export OUTPUT_DIR="$DIR_SAIDA"
 python3 "$SCRIPT_COLETA" &
 pid_coleta=$!
 sleep 2

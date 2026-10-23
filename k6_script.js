@@ -20,10 +20,9 @@ export const options = {
 };
 
 const ENDPOINTS = [
-  '/api/customer/owners',
-  '/api/customer/owners/1',
-  '/api/vet/vets',
-  '/api/visit/owners/1/pets/1/visits',
+  '/api/customer/owners/1',            // 33.3% -> customers-service (mysql-customers)
+  '/api/vet/vets',                     // 33.3% -> vets-service      (mysql-vets)
+  '/api/visit/owners/1/pets/1/visits', // 33.3% -> visits-service    (mysql-visits)
 ];
 
 export default function () {
@@ -32,6 +31,6 @@ export default function () {
   const url = `${API_URL}${ENDPOINTS[idx]}`;
 
   http.get(url, {
-    timeout: '5s', // Timeout de 5 segundos para a requisição
+    timeout: '10s', // Timeout de 10 segundos para a requisição (alinhado com o patamar de MRT de saturação)
   });
 }

@@ -45,8 +45,6 @@ spec:
           periodSeconds: 20
           timeoutSeconds: 5
           failureThreshold: 5
-
-          initialDelaySeconds: 15
         lifecycle:
           preStop:
             exec:
@@ -55,8 +53,8 @@ spec:
           limits:
             memory: 1Gi
           requests:
-            cpu: 2000m
-            memory: 1Gi
+            cpu: 200m
+            memory: 500Mi
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: kubernetes

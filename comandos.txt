@@ -195,6 +195,9 @@ sudo k3s kubectl get pods -n spring-petclinic -o wide
 Reiniciar os pods:
 sudo k3s kubectl rollout restart deployment api-gateway customers-service vets-service visits-service -n spring-petclinic
 
+Verificar o hpa:
+sudo k3s kubectl get hpa -n spring-petclinic
+
 Iniciar o experimento:
 bash run_experiment.sh
 bash run_multiple_experiments.sh

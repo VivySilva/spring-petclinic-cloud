@@ -1,11 +1,14 @@
+# =====================================================================
+# 1. BANCO DE DADOS: CUSTOMERS SERVICE
+# =====================================================================
 apiVersion: v1
 kind: Service
 metadata:
-  name: mysql
+  name: mysql-customers
   namespace: spring-petclinic
 spec:
   selector:
-    app: mysql
+    app: mysql-customers
   ports:
     - port: 3306
       targetPort: 3306
@@ -14,25 +17,152 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mysql
+  name: mysql-customers
   namespace: spring-petclinic
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mysql
+      app: mysql-customers
   template:
     metadata:
       labels:
-        app: mysql
+        app: mysql-customers
     spec:
-      nodeSelector:
-        role: database
-      tolerations:
-        - key: "dedicated"
-          operator: "Equal"
-          value: "database"
-          effect: "NoSchedule"
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - customers-service
+                topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          args:
+            - "--default-authentication-plugin=mysql_native_password"
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: root
+            - name: MYSQL_DATABASE
+              value: service_instance_db
+            - name: MYSQL_USER
+              value: petclinic
+            - name: MYSQL_PASSWORD
+              value: petclinic
+          ports:
+            - containerPort: 3306
+
+---
+# =====================================================================
+# 2. BANCO DE DADOS: VETS SERVICE
+# =====================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-vets
+  namespace: spring-petclinic
+spec:
+  selector:
+    app: mysql-vets
+  ports:
+    - port: 3306
+      targetPort: 3306
+      name: mysql
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-vets
+  namespace: spring-petclinic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-vets
+  template:
+    metadata:
+      labels:
+        app: mysql-vets
+    spec:
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - vets-service
+                topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          args:
+            - "--default-authentication-plugin=mysql_native_password"
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: root
+            - name: MYSQL_DATABASE
+              value: service_instance_db
+            - name: MYSQL_USER
+              value: petclinic
+            - name: MYSQL_PASSWORD
+              value: petclinic
+          ports:
+            - containerPort: 3306
+
+---
+# =====================================================================
+# 3. BANCO DE DADOS: VISITS SERVICE
+# =====================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-visits
+  namespace: spring-petclinic
+spec:
+  selector:
+    app: mysql-visits
+  ports:
+    - port: 3306
+      targetPort: 3306
+      name: mysql
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-visits
+  namespace: spring-petclinic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-visits
+  template:
+    metadata:
+      labels:
+        app: mysql-visits
+    spec:
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - visits-service
+                topologyKey: "kubernetes.io/hostname"
       containers:
         - name: mysql
           image: mysql:8.0

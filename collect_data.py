@@ -6,12 +6,6 @@ e salva em arquivos CSV com timestamp no nome.
 REQUISITOS:
     pip install requests
 
-CONFIGURAÇÃO:
-    Certifique-se que os port-forwards estão ativos antes de rodar:
-        kubectl port-forward svc/prometheus -n spring-petclinic 9090:9090
-        kubectl port-forward svc/loki -n spring-petclinic 3100:3100
-        kubectl port-forward svc/zipkin -n spring-petclinic 9411:9411
-
 USO:
     python collect_data.py
 """
@@ -24,43 +18,35 @@ import re
 import json
 from datetime import datetime, timezone
 
-# ============================================================
-# VARIÁVEIS DE CONFIGURAÇÃO — ajuste conforme necessário
-# ============================================================
 
-COLLECTION_INTERVAL_SECONDS = 60       # Frequência de coleta (segundos)
-# None = rodar até Ctrl+C | Ex: 60 = 1 hora
+# Variáveis de Configuração
+
+COLLECTION_INTERVAL_SECONDS = 60 # Frequência de coleta (segundos)
 COLLECTION_DURATION_MINUTES = None
 
 PROMETHEUS_URL = "http://localhost:30090"
 LOKI_URL = "http://localhost:30100"
 ZIPKIN_URL = "http://localhost:30411"
 
-OUTPUT_DIR = "collect_data"
+OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "collect_data_v2")
 
-# Topologia de rede do experimento — MUDE ANTES DE CADA COLETA!
-# Opções:
+# Topologia de rede do experimento 
 #   "distributed"  — computadores em redes/Wi-Fis diferentes (VPN relay)
 #   "same_network" — todos os computadores no mesmo roteador Wi-Fi
-NETWORK_TOPOLOGY = "distributed"
+#   "single_node"  — apenas um notebook
+NETWORK_TOPOLOGY = os.environ.get("NETWORK_TOPOLOGY", "single_node")
 
-# Quantidade de computadores (nós) ativos no cluster — MUDE ANTES DE CADA COLETA!
-# Valores possíveis: 1, 2 ou 3
-# Use isso para registrar se você está rodando só no notebook,
-# com 2 máquinas ou com todas as 3.
-CLUSTER_NODES = 3
+# Quantidade de computadores (nós) ativos no cluster
+CLUSTER_NODES = int(os.environ.get("CLUSTER_NODES", "1"))
 
-# Carga de requisições por segundo aplicada no experimento — MUDE ANTES DE CADA COLETA!
-# Deve corresponder ao valor de REQUISICOES_POR_SEGUNDO configurado no run_experiment.sh.
-# Exemplos: 6, 60, 120, 180, 240, 300
-LOAD_RPS = 300
+# Carga de requisições por segundo aplicada no experimento
+# Configurada automaticamente via variável de ambiente LOAD_RPS
+LOAD_RPS = int(os.environ.get("LOAD_RPS", os.environ.get("RPS", "6")))
 
-# ── Limites de coleta (calculados automaticamente — NÃO ALTERE) ──────────────
-# Após a filtragem de ruído (actuator, stack traces, etc.), o volume real de logs
-# é muito menor que RPS × intervalo. Um limite de 5000 por serviço cobre até
-# 300 RPS com margem, sem sobrecarregar o Loki ou o Zipkin.
-LOKI_LIMIT = 5000                  # linhas por serviço por coleta
+
+LOKI_LIMIT = 5000 # máximo de linhas de log por serviço
 ZIPKIN_LIMIT = min(5000, max(2000, LOAD_RPS * 60))  # traces por serviço (escala com RPS)
+IGNORED_PATHS = {"/wpad.dat", "/favicon.ico"} # Paths de ruído no Zipkin para ignorar
 
 
 SERVICES = [
@@ -70,12 +56,8 @@ SERVICES = [
     "visits-service",
 ]
 
-# Paths de ruído a ignorar no Zipkin
-IGNORED_PATHS = {"/wpad.dat", "/favicon.ico"}
 
-# ============================================================
-# TODAS AS MÉTRICAS DO PROMETHEUS
-# ============================================================
+# Todas as métricas do Prometheus
 
 PROMETHEUS_METRICS = [
     # CPU
@@ -170,16 +152,16 @@ PROMETHEUS_METRICS = [
     "zipkin_reporter_spans_total",
 ]
 
-# ============================================================
-# AUXILIARES
-# ============================================================
 
+# Funções auxiliares
 
 def ensure_output_dir():
+    """ Cria a pasta collect_data/ se não existir"""
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 def resolve_instance_to_service():
+    """De acordo com os labels no Prometheus, resolve o IP da instância para o nome do serviço."""
     mapping = {}
     try:
         response = requests.get(f"{PROMETHEUS_URL}/api/v1/targets", timeout=10)
